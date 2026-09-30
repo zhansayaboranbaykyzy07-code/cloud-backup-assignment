@@ -1,0 +1,70 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+abstract class BackupTask {
+  # driver : StorageDriver
+  + BackupTask(driver : StorageDriver)
+  + {abstract} backup(backupId : String, payload : byte[]) : void
+  + {abstract} restore(backupId : String) : byte[]
+}
+
+class EncryptedBackupTask {
+  + backup(backupId : String, payload : byte[]) : void
+  + restore(backupId : String) : byte[]
+}
+
+class CompressedBackupTask {
+  + backup(backupId : String, payload : byte[]) : void
+  + restore(backupId : String) : byte[]
+}
+
+interface StorageDriver {
+  + store(objectKey : String, content : byte[]) : void
+  + retrieve(objectKey : String) : byte[]
+  + remove(objectKey : String) : void
+}
+
+class AwsS3StorageDriver {
+  - s3Bucket : Map<String, byte[]>
+  + store(objectKey : String, content : byte[]) : void
+  + retrieve(objectKey : String) : byte[]
+  + remove(objectKey : String) : void
+}
+
+class GoogleCloudStorageDriver {
+  - gcsBucket : Map<String, byte[]>
+  + store(objectKey : String, content : byte[]) : void
+  + retrieve(objectKey : String) : byte[]
+  + remove(objectKey : String) : void
+}
+
+class LegacyFtpStorageAdapter {
+  - ftpClient : LegacyFtpClient
+  + LegacyFtpStorageAdapter(ftpClient : LegacyFtpClient)
+  + store(objectKey : String, content : byte[]) : void
+  + retrieve(objectKey : String) : byte[]
+  + remove(objectKey : String) : void
+}
+
+class LegacyFtpClient <<Third-Party>> {
+  + pushFile(remotePath : String, stream : InputStream, length : int) : int
+  + fetchFile(remotePath : String, status : FtpStatus) : byte[]
+  + eraseFile(remotePath : String) : boolean
+}
+
+class StorageDriverRegistry {
+  + {static} resolveDriver(destinationUri : String, client : LegacyFtpClient) : StorageDriver
+}
+
+BackupTask o-> StorageDriver : "uses"
+EncryptedBackupTask --|> BackupTask
+CompressedBackupTask --|> BackupTask
+
+AwsS3StorageDriver ..|> StorageDriver
+GoogleCloudStorageDriver ..|> StorageDriver
+LegacyFtpStorageAdapter ..|> StorageDriver
+
+LegacyFtpStorageAdapter --> LegacyFtpClient : "adapts"
+StorageDriverRegistry ..> StorageDriver : "creates"
+
+@enduml
